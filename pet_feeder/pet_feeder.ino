@@ -7,7 +7,14 @@ DS3231 set;
 RTClib myRTC;
 byte pageNumbers[3] = {0, 0, 0};
 char data;
-int lineSelector = 0;
+int interval, value = -1, lineSelector = 0;
+
+typedef struct
+{
+  byte hr;
+  byte min;
+}
+_time;
 
 void setup () 
 {
@@ -18,6 +25,8 @@ void setup ()
     delay(100);
     showMenu();
 }
+
+_time morning, night, extra;
 
 void loop () 
 {
@@ -85,6 +94,131 @@ void readChar()
         else if(pageNumbers[1] == 0)
         {
           pageNumbers[1] = lineSelector + 1;
+        }
+        /* save value */
+        else if(value >= 0)
+        {
+          /* save date */
+          if(pageNumbers[0] == 1)
+          {
+            /* save year */
+            if(pageNumbers[1] == 1)
+            {
+              set.setYear(value - 48);
+              value = -1;
+              pageNumbers[1]++;
+            }
+            /* save month */
+            else if(pageNumbers[1] == 2)
+            {
+              set.setMonth(value);
+              value = -1;
+              pageNumbers[1]++;
+            }
+            /* save day */
+            else if(pageNumbers[1] == 3)
+            {
+              set.setDate(value);
+              value = -1;
+              pageNumbers[1] = 0;
+              pageNumbers[0] = 0;
+            }
+          }
+          /* save time */
+          else if(pageNumbers[0] == 2)
+          {
+            /* save hour */
+            if(pageNumbers[1] == 1)
+            {
+              set.setHour(value);
+              value = -1;
+              pageNumbers[1]++;
+            }
+            /* save minute */
+            else if(pageNumbers[1] == 2)
+            {
+              set.setMinute(value);
+              value = -1;
+              pageNumbers[1] = 0;
+              pageNumbers[0] = 0;
+            }
+          }
+          /* save feeding settings */
+          else if(pageNumbers[0] == 3)
+          {
+            /* save morning time */
+            if(pageNumbers[1] == 1)
+            {
+              if(pageNumbers[2] == 1)
+              {
+                morning.hr = value;
+                value = -1;
+                pageNumbers[2]++;
+              }
+              else if(pageNumbers[2] == 2)
+              {
+                morning.min = value;
+                value = -1;
+                pageNumbers[2] = 0;
+                pageNumbers[1] = 0;
+              }
+            }
+            /* save night time */
+            else if(pageNumbers[1] == 2)
+            {
+              if(pageNumbers[2] == 1)
+              {
+                night.hr = value;
+                value = -1;
+                pageNumbers[2]++;
+              }
+              else if(pageNumbers[2] == 2)
+              {
+                night.min = value;
+                value = -1;
+                pageNumbers[2] = 0;
+                pageNumbers[1] = 0;
+              }
+            }
+            /* save feeding interval */
+            else if(pageNumbers[1] == 3)
+            {
+              interval = value;
+              value = -1;
+              pageNumbers[1] = 0;
+            }
+            /* save extra feeding */
+            else if(pageNumbers[1] == 4)
+            {
+              if(pageNumbers[2] == 1)
+              {
+                extra.hr = value;
+                value = -1;
+                pageNumbers[2]++;
+              }
+              else if(pageNumbers[2] == 2)
+              {
+                extra.min = value;
+                value = -1;
+                pageNumbers[2] = 0;
+                pageNumbers[1] = 0;
+              }
+            }
+            /* delete extra feeding */
+            else if(pageNumbers[1] == 5)
+            {
+              if(value == 1)
+              {
+                //TODO
+                value = -1;
+              }
+              else
+              {
+                pageNumbers[1] = 0;
+                value = -1;
+              }
+            }
+          }
         }
         else
         {
@@ -218,6 +352,7 @@ void showMenu()
           Serial.println("-> " + String(2023 + lineSelector));
         }
         Serial.println("////////////////////////////");
+        value = lineSelector + 2023;
       }
 
       /* month menu */
@@ -252,6 +387,7 @@ void showMenu()
           (lineSelector    ) < 9 ? Serial.println("-> 0" + String( 1 + lineSelector)) : Serial.println("-> " + String( 1 + lineSelector));
         }
         Serial.println("////////////////////////////");
+        value = lineSelector + 1;
       }
 
       /* day menu */
@@ -286,6 +422,7 @@ void showMenu()
           (lineSelector    ) < 9 ? Serial.println("-> 0" + String( 1 + lineSelector)) : Serial.println("-> " + String( 1 + lineSelector));
         }
         Serial.println("////////////////////////////");
+        value = lineSelector + 1;
       }
     }
 
@@ -325,6 +462,7 @@ void showMenu()
           (lineSelector    ) < 10 ? Serial.println("-> 0" + String( 0 + lineSelector)) : Serial.println("-> " + String( 0 + lineSelector));
         }
         Serial.println("////////////////////////////");
+        value = lineSelector;
       }
 
       /* minute menu */
@@ -360,6 +498,7 @@ void showMenu()
           (lineSelector    ) < 10 ? Serial.println("-> 0" + String( 0 + lineSelector)) : Serial.println("-> " + String( 0 + lineSelector));
         }
         Serial.println("////////////////////////////");
+        value = lineSelector;
       }
     }
 
@@ -425,6 +564,7 @@ void showMenu()
           Serial.println("-> " + String( 10 + (lineSelector * 10)));
         }
         Serial.println("////////////////////////////");
+        value = (lineSelector + 1) * 10;
       }
 
       /* extra feeding time menu */
@@ -451,6 +591,7 @@ void showMenu()
         lineSelector == 0 ? Serial.println("-> Keep extra feedings") :   Serial.println("   Keep extra feedings");
         lineSelector == 1 ? Serial.println("-> Delete extra feedings") : Serial.println("   Delete extra feedings");
         Serial.println("////////////////////////////");
+        value = lineSelector;
       }
     }
   }
@@ -492,6 +633,7 @@ void showMenu()
           (lineSelector    ) < 10 ? Serial.println("-> 0" + String( 0 + lineSelector)) : Serial.println("-> " + String( 0 + lineSelector));
         }
         Serial.println("////////////////////////////");
+        value = lineSelector;
       }
 
       /* set morning time minute */
@@ -527,6 +669,7 @@ void showMenu()
           Serial.println("-> " + String(  0 + (lineSelector * 10)));
         }
         Serial.println("////////////////////////////");
+        value = lineSelector * 10;
       }
     }
 
@@ -566,6 +709,7 @@ void showMenu()
           (lineSelector    ) < 10 ? Serial.println("-> 0" + String( 0 + lineSelector)) : Serial.println("-> " + String( 0 + lineSelector));
         }
         Serial.println("////////////////////////////");
+        value = lineSelector;
       }
 
       /* set night time minute */
@@ -601,6 +745,7 @@ void showMenu()
           Serial.println("-> " + String(  0 + (lineSelector * 10)));
         }
         Serial.println("////////////////////////////");
+        value = lineSelector * 10;
       }
     }
 
@@ -640,6 +785,7 @@ void showMenu()
           (lineSelector    ) < 10 ? Serial.println("-> 0" + String( 0 + lineSelector)) : Serial.println("-> " + String( 0 + lineSelector));
         }
         Serial.println("////////////////////////////");
+        value = lineSelector;
       }
 
       /* set extra feeding time minute */
@@ -675,9 +821,19 @@ void showMenu()
           Serial.println("-> " + String(  0 + (lineSelector * 10)));
         }
         Serial.println("////////////////////////////");
+        value = (lineSelector + 1) * 10;
       }
     }
   }
+  // Serial.print("temp: ");
+  // Serial.println(value);
+  Serial.print("pageNumbers: {");
+  Serial.print(pageNumbers[0]);
+  Serial.print(", ");
+  Serial.print(pageNumbers[1]);
+  Serial.print(", ");
+  Serial.print(pageNumbers[2]);
+  Serial.println("}");
 }
 
 /*********************************************************************** END OF FILE ************************************************************************/
