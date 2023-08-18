@@ -1,13 +1,16 @@
 /*************************************************************** START OF FILE *******************************************************************/
-
+#include <Preferences.h>
 #include <Wire.h>
 #include <DS3231.h>
 
+#define DRIVER_PIN    10
+
 DS3231 set;
 RTClib myRTC;
-byte pageNumbers[3] = {0, 0, 0};
+Preferences pref;
 char data;
-int interval, value = -1, lineSelector = 0;
+byte pageNumbers[3] = {0, 0, 0};
+int feed_counter, interval, value = -1, lineSelector = 0;
 
 typedef struct
 {
@@ -21,6 +24,23 @@ void setup ()
     Serial.begin(9600);
     Wire.begin();
     setTime(2023, 8, 14, 11, 58, 40);
+    pref.begin("pet_feeder", false);
+    pinMode(DRIVER_PIN, OUTPUT);
+    /* check if there is feed times saved */
+    byte *pDummy;
+    if(!getFeedTimes(pDummy, pDummy, pDummy, pDummy))
+    {
+      //TODO
+    }
+    else
+    {
+      byte temp = checkMisFeeding();
+      if(temp != -1)
+      {
+        misFeedingHandler(temp);
+      }
+    }
+
     //pinMode(D6, OUTPUT);
     delay(100);
     showMenu();
@@ -69,6 +89,127 @@ void showTemperature()
 {
     Serial.print("Temp: ");
     Serial.println(set.getTemperature());
+}
+
+/************************************************************** FEED TIME FUNCTIONS *************************************************************/
+
+bool getFeedTimes(byte *pCounter, byte *pHours, byte *pMinutes, byte *pChecks)
+{
+    *pCounter = pref.getInt("feed_counter", 0);
+    if(feed_counter > 0)
+    {
+      byte feed_hours[*pCounter];
+      byte feed_minutes[*pCounter];
+      byte feed_checks[*pCounter];
+
+      pref.getBytes("feed_hours", feed_hours, *pCounter);
+      pref.getBytes("feed_minutes", feed_minutes, *pCounter);
+      pref.getBytes("feed_checks", feed_checks, *pCounter);
+
+      pHours = &feed_hours[0];
+      pMinutes = &feed_minutes[0];
+      pChecks = &feed_checks[0];
+    }
+    else
+    {
+      return false;
+    }
+    return true;
+}
+
+bool calculateFeedTimes()
+{
+  if(interval > 0)
+  {
+    byte temp_hr, temp_min;
+    temp_hr = morning.hr;
+    temp_min = morning.min;
+
+    byte feed_counter2 = (night.hr - morning.hr) * 60 + (night.min - morning.min);
+
+    byte feed_hours2[feed_counter2];
+    byte feed_minutes2[feed_counter2];
+    byte feed_checks2[feed_counter2];
+
+    for(byte i = 0; i < feed_counter2; i++)
+    {
+      /* save values to arrays */
+      feed_hours2[i] = temp_hr;
+      feed_minutes2[i] = temp_min;
+      feed_checks2[i] = 0;
+
+      /* calculate next feeding time */
+      temp_min += interval;
+      /* if temp_min is more than 60 * x, increase hour */
+      if(temp_min > (60 * (temp_hr - morning.hr + 1)))
+      {
+        temp_hr++;
+      }
+    }
+
+    /* save values to database */
+    pref.putBytes("feed_hours", feed_hours2, feed_counter2);
+    pref.putBytes("feed_minutes", feed_minutes2, feed_counter2);
+    pref.putBytes("feed_checks", feed_checks2, feed_counter2);
+
+    return true;
+  }
+  else
+  {
+    return false;
+  }
+}
+
+void feedTime(byte sec)
+{
+  digitalWrite(DRIVER_PIN, HIGH);
+  delay(sec * 10);
+  digitalWrite(DRIVER_PIN, LOW);
+}
+
+byte checkMisFeeding()
+{
+  byte *feed_counter3;
+  byte *pFeed_hours;
+  byte *pFeed_minutes;
+  byte *pFeed_checks;
+
+  DateTime now2 = myRTC.now();
+  byte temp_hr2 = now2.hour();
+  byte temp_min2 = now2.minute();
+
+  getFeedTimes(feed_counter3, pFeed_hours, pFeed_minutes, pFeed_checks);
+
+  for(byte j = 0; j < *feed_counter3; j++)
+  {
+    if((temp_hr2 >= *(pFeed_hours + j)) && (temp_min2 >= *(pFeed_minutes + j)))
+    {
+      if(*(pFeed_checks + j) == 0)
+      {
+        return j;
+      }
+      return -1;
+    }
+  }
+  return -1;
+}
+
+void misFeedingHandler(byte feeding_number)
+{
+  byte *feed_counter4;
+  byte *pFeed_hours2;
+  byte *pFeed_minutes2;
+  byte *pFeed_checks2;
+
+  getFeedTimes(feed_counter4, pFeed_hours2, pFeed_minutes2, pFeed_checks2);
+
+  /* complete misfeeding */
+  //feedTime(10);
+  /* save feeding */
+  *(pFeed_checks2 + feeding_number) = 1;
+  pref.remove("feed_checks");
+  pref.putBytes("feed_checks", pFeed_checks2, *feed_counter4);
+
 }
 
 /**************************************************************** MENU FUNCTIONS ****************************************************************/
