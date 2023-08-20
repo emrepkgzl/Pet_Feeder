@@ -23,23 +23,23 @@ void setup ()
 {
     Serial.begin(9600);
     Wire.begin();
-    setTime(2023, 8, 14, 11, 58, 40);
-    pref.begin("pet_feeder", false);
-    pinMode(DRIVER_PIN, OUTPUT);
-    /* check if there is feed times saved */
-    byte *pDummy;
-    if(!getFeedTimes(pDummy, pDummy, pDummy, pDummy))
-    {
-      //TODO
-    }
-    else
-    {
-      byte temp = checkMisFeeding();
-      if(temp != -1)
-      {
-        misFeedingHandler(temp);
-      }
-    }
+    // setTime(2023, 8, 14, 11, 58, 40);
+    // pref.begin("pet_feeder", false);
+    // pinMode(DRIVER_PIN, OUTPUT);
+    // /* check if there is feed times saved */
+    // byte *pDummy;
+    // if(!getFeedTimes(pDummy, pDummy, pDummy, pDummy))
+    // {
+    //   //TODO
+    // }
+    // else
+    // {
+    //   byte temp = checkMisFeeding();
+    //   if(temp != -1)
+    //   {
+    //     misFeedingHandler(temp);
+    //   }
+    // }
 
     //pinMode(D6, OUTPUT);
     delay(100);
@@ -228,13 +228,17 @@ void readChar()
       /* okay -> go into menu */
       else if(data == 'o')
       {
-        if(pageNumbers[0] == 0)
+        if((pageNumbers[0] == 0) && (value == -1))
         {
           pageNumbers[0] = lineSelector + 1;
         }
-        else if(pageNumbers[1] == 0)
+        else if((pageNumbers[1] == 0) && (value == -1))
         {
           pageNumbers[1] = lineSelector + 1;
+        }
+        else if((pageNumbers[2] == 0) && (value == -1))
+        {
+          pageNumbers[2] = lineSelector + 1;
         }
         /* save value */
         else if(value >= 0)
@@ -392,8 +396,41 @@ void readChar()
     }
 }
 
+void showOptionsMenu(byte index, String *pMenu_options)
+{
+  Serial.println("////////////////////////////");
+  if(index == 0)
+  {
+    Serial.println("-> " + *pMenu_options);
+    Serial.println("   " + *(pMenu_options + 1));
+  }
+  else
+  {
+    Serial.println("   " + *(pMenu_options + index - 1));
+    Serial.println("-> " + *(pMenu_options + index));
+  }
+  Serial.println("////////////////////////////");
+}
+
+void showNumbersMenu(byte index, byte multiplier, int firstNum)
+{
+  Serial.println("////////////////////////////");
+  if(index == 0)
+  {
+    firstNum < 10 ? Serial.println("-> 0" + String(firstNum)) : Serial.println("-> " + String(firstNum));
+    (firstNum + (1 * multiplier)) < 10 ? Serial.println("   0" + String(firstNum + (1 * multiplier))) : Serial.println("   " + String(firstNum + (1 * multiplier)));
+  }
+  else
+  {
+    (firstNum + ((index - 1) * multiplier)) < 10 ? Serial.println("   0" + String(firstNum + ((index - 1) * multiplier))) : Serial.println("   " + String(firstNum + ((index - 1) * multiplier)));
+    (firstNum + (index * multiplier)) < 10 ? Serial.println("-> 0" + String(firstNum + (index * multiplier))) : Serial.println("-> " + String(firstNum + (index * multiplier)));
+  }
+  Serial.println("////////////////////////////");
+}
+
 void showMenu()
 {
+  String menu_options[5];
   if(pageNumbers[2] == 0)
   {
         /* if any sub menu is not selected */
@@ -406,11 +443,12 @@ void showMenu()
         {
           lineSelector = 0;
         }
-        Serial.println("////////////////////////////");
-        lineSelector == 0 ? Serial.println("-> Set Date") :      Serial.println("   Set Date");
-        lineSelector == 1 ? Serial.println("-> Set Time") :      Serial.println("   Set Time");
-        lineSelector == 2 ? Serial.println("-> Set Feed Time") : Serial.println("   Set Feed Time");
-        Serial.println("////////////////////////////");
+        menu_options[0] = "Set Date";
+        menu_options[1] = "Set Time";
+        menu_options[2] = "Set Feed Time";
+        menu_options[3] = "";
+        menu_options[4] = "";
+        showOptionsMenu(lineSelector, &menu_options[0]);
       }
 
       /* date menu */
@@ -420,11 +458,12 @@ void showMenu()
         {
           lineSelector = 0;
         }
-        Serial.println("////////////////////////////");
-        lineSelector == 0 ? Serial.println("-> Set Year") :  Serial.println("   Set Year");
-        lineSelector == 1 ? Serial.println("-> Set Month") : Serial.println("   Set Month");
-        lineSelector == 2 ? Serial.println("-> Set Day") :   Serial.println("   Set Day");
-        Serial.println("////////////////////////////");
+        menu_options[0] = "Set Year";
+        menu_options[1] = "Set Month";
+        menu_options[2] = "Set Day";
+        menu_options[3] = "";
+        menu_options[4] = "";
+        showOptionsMenu(lineSelector, &menu_options[0]);
       }
 
       /* time menu */
@@ -434,10 +473,12 @@ void showMenu()
         {
           lineSelector = 0;
         }
-        Serial.println("////////////////////////////");
-        lineSelector == 0 ? Serial.println("-> Set Hour") :   Serial.println("   Set Hour");
-        lineSelector == 1 ? Serial.println("-> Set Minute") : Serial.println("   Set Minute");
-        Serial.println("////////////////////////////");
+        menu_options[0] = "Set Hour";
+        menu_options[1] = "Set Minute";
+        menu_options[2] = "";
+        menu_options[3] = "";
+        menu_options[4] = "";
+        showOptionsMenu(lineSelector, &menu_options[0]);
       }
 
       /* time menu */
@@ -447,13 +488,12 @@ void showMenu()
         {
           lineSelector = 0;
         }
-        Serial.println("////////////////////////////");
-        lineSelector == 0 ? Serial.println("-> Set Morning Time") :      Serial.println("   Set Morning Time");
-        lineSelector == 1 ? Serial.println("-> Set Night Time") :        Serial.println("   Set Night Time");
-        lineSelector == 2 ? Serial.println("-> Set Feeding Interval") :  Serial.println("   Set Feeding Interval");
-        lineSelector == 3 ? Serial.println("-> Set Extra Feeding") :     Serial.println("   Set Extra Feeding");
-        lineSelector == 4 ? Serial.println("-> Delete Extra Feedings") : Serial.println("   Delete Extra Feedings");
-        Serial.println("////////////////////////////");
+        menu_options[0] = "Set Morning Time";
+        menu_options[1] = "Set Night Time";
+        menu_options[2] = "Set Feeding Interval";
+        menu_options[3] = "Set Extra Feeding";
+        menu_options[4] = "Delete Extra Feedings";
+        showOptionsMenu(lineSelector, &menu_options[0]);
       }
     }
 
@@ -467,32 +507,7 @@ void showMenu()
         {
           lineSelector = 0;
         }
-        Serial.println("////////////////////////////");
-        if(lineSelector == 0)
-        {
-          Serial.println("-> 2023");
-          Serial.println("   2024");
-          Serial.println("   2025");
-        }
-        else if(lineSelector == 1)
-        {
-          Serial.println("   2023");
-          Serial.println("-> 2024");
-          Serial.println("   2025");
-        }
-        else if(lineSelector == 2)
-        {
-          Serial.println("   2023");
-          Serial.println("   2024");
-          Serial.println("-> 2025");
-        }
-        else
-        {
-          Serial.println("   " + String(2021 + lineSelector));
-          Serial.println("   " + String(2022 + lineSelector));
-          Serial.println("-> " + String(2023 + lineSelector));
-        }
-        Serial.println("////////////////////////////");
+        showNumbersMenu(lineSelector, 1, 2023);
         value = lineSelector + 2023;
       }
 
@@ -503,31 +518,7 @@ void showMenu()
         {
           lineSelector = 0;
         }
-        if(lineSelector == 0)
-        {
-          Serial.println("-> 01");
-          Serial.println("   02");
-          Serial.println("   03");
-        }
-        else if(lineSelector == 1)
-        {
-          Serial.println("   01");
-          Serial.println("-> 02");
-          Serial.println("   03");
-        }
-        else if(lineSelector == 2)
-        {
-          Serial.println("   01");
-          Serial.println("   02");
-          Serial.println("-> 03");
-        }
-        else
-        {
-          (lineSelector - 2) < 9 ? Serial.println("   0" + String(-1 + lineSelector)) : Serial.println("   " + String(-1 + lineSelector));
-          (lineSelector - 1) < 9 ? Serial.println("   0" + String( 0 + lineSelector)) : Serial.println("   " + String( 0 + lineSelector));
-          (lineSelector    ) < 9 ? Serial.println("-> 0" + String( 1 + lineSelector)) : Serial.println("-> " + String( 1 + lineSelector));
-        }
-        Serial.println("////////////////////////////");
+        showNumbersMenu(lineSelector, 1, 1);
         value = lineSelector + 1;
       }
 
@@ -538,31 +529,7 @@ void showMenu()
         {
           lineSelector = 0;
         }
-        if(lineSelector == 0)
-        {
-          Serial.println("-> 01");
-          Serial.println("   02");
-          Serial.println("   03");
-        }
-        else if(lineSelector == 1)
-        {
-          Serial.println("   01");
-          Serial.println("-> 02");
-          Serial.println("   03");
-        }
-        else if(lineSelector == 2)
-        {
-          Serial.println("   01");
-          Serial.println("   02");
-          Serial.println("-> 03");
-        }
-        else
-        {
-          (lineSelector - 2) < 9 ? Serial.println("   0" + String(-1 + lineSelector)) : Serial.println("   " + String(-1 + lineSelector));
-          (lineSelector - 1) < 9 ? Serial.println("   0" + String( 0 + lineSelector)) : Serial.println("   " + String( 0 + lineSelector));
-          (lineSelector    ) < 9 ? Serial.println("-> 0" + String( 1 + lineSelector)) : Serial.println("-> " + String( 1 + lineSelector));
-        }
-        Serial.println("////////////////////////////");
+        showNumbersMenu(lineSelector, 1, 1);
         value = lineSelector + 1;
       }
     }
@@ -577,32 +544,7 @@ void showMenu()
         {
           lineSelector = 0;
         }
-        Serial.println("////////////////////////////");
-        if(lineSelector == 0)
-        {
-          Serial.println("-> 00");
-          Serial.println("   01");
-          Serial.println("   02");
-        }
-        else if(lineSelector == 1)
-        {
-          Serial.println("   00");
-          Serial.println("-> 01");
-          Serial.println("   02");
-        }
-        else if(lineSelector == 2)
-        {
-          Serial.println("   00");
-          Serial.println("   01");
-          Serial.println("-> 02");
-        }
-        else
-        {
-          (lineSelector - 2) < 10 ? Serial.println("   0" + String(-2 + lineSelector)) : Serial.println("   " + String(-2 + lineSelector));
-          (lineSelector - 1) < 10 ? Serial.println("   0" + String(-1 + lineSelector)) : Serial.println("   " + String(-1 + lineSelector));
-          (lineSelector    ) < 10 ? Serial.println("-> 0" + String( 0 + lineSelector)) : Serial.println("-> " + String( 0 + lineSelector));
-        }
-        Serial.println("////////////////////////////");
+        showNumbersMenu(lineSelector, 10, 0);
         value = lineSelector;
       }
 
@@ -613,32 +555,7 @@ void showMenu()
         {
           lineSelector = 0;
         }
-        Serial.println("////////////////////////////");
-        if(lineSelector == 0)
-        {
-          Serial.println("-> 00");
-          Serial.println("   01");
-          Serial.println("   02");
-        }
-        else if(lineSelector == 1)
-        {
-          Serial.println("   00");
-          Serial.println("-> 01");
-          Serial.println("   02");
-        }
-        else if(lineSelector == 2)
-        {
-          Serial.println("   00");
-          Serial.println("   01");
-          Serial.println("-> 02");
-        }
-        else
-        {
-          (lineSelector - 2) < 10 ? Serial.println("   0" + String(-2 + lineSelector)) : Serial.println("   " + String(-2 + lineSelector));
-          (lineSelector - 1) < 10 ? Serial.println("   0" + String(-1 + lineSelector)) : Serial.println("   " + String(-1 + lineSelector));
-          (lineSelector    ) < 10 ? Serial.println("-> 0" + String( 0 + lineSelector)) : Serial.println("-> " + String( 0 + lineSelector));
-        }
-        Serial.println("////////////////////////////");
+        showNumbersMenu(lineSelector, 1, 0);
         value = lineSelector;
       }
     }
@@ -653,10 +570,12 @@ void showMenu()
         {
           lineSelector = 0;
         }
-        Serial.println("////////////////////////////");
-        lineSelector == 0 ? Serial.println("-> Set Hour") :   Serial.println("   Set Hour");
-        lineSelector == 1 ? Serial.println("-> Set Minute") : Serial.println("   Set Minute");
-        Serial.println("////////////////////////////");
+        menu_options[0] = "Set Hour";
+        menu_options[1] = "Set Minute";
+        menu_options[2] = "";
+        menu_options[3] = "";
+        menu_options[4] = "";
+        showOptionsMenu(lineSelector, &menu_options[0]);
       }
 
       /* night time menu */
@@ -666,10 +585,12 @@ void showMenu()
         {
           lineSelector = 0;
         }
-        Serial.println("////////////////////////////");
-        lineSelector == 0 ? Serial.println("-> Set Hour") :   Serial.println("   Set Hour");
-        lineSelector == 1 ? Serial.println("-> Set Minute") : Serial.println("   Set Minute");
-        Serial.println("////////////////////////////");
+        menu_options[0] = "Set Hour";
+        menu_options[1] = "Set Minute";
+        menu_options[2] = "";
+        menu_options[3] = "";
+        menu_options[4] = "";
+        showOptionsMenu(lineSelector, &menu_options[0]);
       }
 
       /* time interval menu */
@@ -679,32 +600,7 @@ void showMenu()
         {
           lineSelector = 0;
         }
-        Serial.println("////////////////////////////");
-        if(lineSelector == 0)
-        {
-          Serial.println("-> 10");
-          Serial.println("   20");
-          Serial.println("   30");
-        }
-        else if(lineSelector == 1)
-        {
-          Serial.println("   10");
-          Serial.println("-> 20");
-          Serial.println("   30");
-        }
-        else if(lineSelector == 2)
-        {
-          Serial.println("   10");
-          Serial.println("   20");
-          Serial.println("-> 30");
-        }
-        else
-        {
-          Serial.println("   " + String(-10 + (lineSelector * 10)));
-          Serial.println("   " + String(  0 + (lineSelector * 10)));
-          Serial.println("-> " + String( 10 + (lineSelector * 10)));
-        }
-        Serial.println("////////////////////////////");
+        showNumbersMenu(lineSelector, 10, 10);
         value = (lineSelector + 1) * 10;
       }
 
@@ -715,10 +611,12 @@ void showMenu()
         {
           lineSelector = 0;
         }
-        Serial.println("////////////////////////////");
-        lineSelector == 0 ? Serial.println("-> Set Hour") :   Serial.println("   Set Hour");
-        lineSelector == 1 ? Serial.println("-> Set Minute") : Serial.println("   Set Minute");
-        Serial.println("////////////////////////////");
+        menu_options[0] = "Set Hour";
+        menu_options[1] = "Set Minute";
+        menu_options[2] = "";
+        menu_options[3] = "";
+        menu_options[4] = "";
+        showOptionsMenu(lineSelector, &menu_options[0]);
       }
 
       /* delete extra feedings menu */
@@ -728,10 +626,12 @@ void showMenu()
         {
           lineSelector = 0;
         }
-        Serial.println("////////////////////////////");
-        lineSelector == 0 ? Serial.println("-> Keep extra feedings") :   Serial.println("   Keep extra feedings");
-        lineSelector == 1 ? Serial.println("-> Delete extra feedings") : Serial.println("   Delete extra feedings");
-        Serial.println("////////////////////////////");
+        menu_options[0] = "Keep extra feedings";
+        menu_options[1] = "Delete extra feedings";
+        menu_options[2] = "";
+        menu_options[3] = "";
+        menu_options[4] = "";
+        showOptionsMenu(lineSelector, &menu_options[0]);
         value = lineSelector;
       }
     }
@@ -748,32 +648,7 @@ void showMenu()
         {
           lineSelector = 0;
         }
-        Serial.println("////////////////////////////");
-        if(lineSelector == 0)
-        {
-          Serial.println("-> 00");
-          Serial.println("   01");
-          Serial.println("   02");
-        }
-        else if(lineSelector == 1)
-        {
-          Serial.println("   00");
-          Serial.println("-> 01");
-          Serial.println("   02");
-        }
-        else if(lineSelector == 2)
-        {
-          Serial.println("   00");
-          Serial.println("   01");
-          Serial.println("-> 02");
-        }
-        else
-        {
-          (lineSelector - 2) < 10 ? Serial.println("   0" + String(-2 + lineSelector)) : Serial.println("   " + String(-2 + lineSelector));
-          (lineSelector - 1) < 10 ? Serial.println("   0" + String(-1 + lineSelector)) : Serial.println("   " + String(-1 + lineSelector));
-          (lineSelector    ) < 10 ? Serial.println("-> 0" + String( 0 + lineSelector)) : Serial.println("-> " + String( 0 + lineSelector));
-        }
-        Serial.println("////////////////////////////");
+        showNumbersMenu(lineSelector, 1, 0);
         value = lineSelector;
       }
 
@@ -784,32 +659,7 @@ void showMenu()
         {
           lineSelector = 0;
         }
-        Serial.println("////////////////////////////");
-        if(lineSelector == 0)
-        {
-          Serial.println("-> 00");
-          Serial.println("   10");
-          Serial.println("   20");
-        }
-        else if(lineSelector == 1)
-        {
-          Serial.println("   00");
-          Serial.println("-> 10");
-          Serial.println("   20");
-        }
-        else if(lineSelector == 2)
-        {
-          Serial.println("   00");
-          Serial.println("   10");
-          Serial.println("-> 20");
-        }
-        else
-        {
-          Serial.println("   " + String(-20 + (lineSelector * 10)));
-          Serial.println("   " + String(-10 + (lineSelector * 10)));
-          Serial.println("-> " + String(  0 + (lineSelector * 10)));
-        }
-        Serial.println("////////////////////////////");
+        showNumbersMenu(lineSelector, 10, 0);
         value = lineSelector * 10;
       }
     }
@@ -824,32 +674,7 @@ void showMenu()
         {
           lineSelector = 0;
         }
-        Serial.println("////////////////////////////");
-        if(lineSelector == 0)
-        {
-          Serial.println("-> 00");
-          Serial.println("   01");
-          Serial.println("   02");
-        }
-        else if(lineSelector == 1)
-        {
-          Serial.println("   00");
-          Serial.println("-> 01");
-          Serial.println("   02");
-        }
-        else if(lineSelector == 2)
-        {
-          Serial.println("   00");
-          Serial.println("   01");
-          Serial.println("-> 02");
-        }
-        else
-        {
-          (lineSelector - 2) < 10 ? Serial.println("   0" + String(-2 + lineSelector)) : Serial.println("   " + String(-2 + lineSelector));
-          (lineSelector - 1) < 10 ? Serial.println("   0" + String(-1 + lineSelector)) : Serial.println("   " + String(-1 + lineSelector));
-          (lineSelector    ) < 10 ? Serial.println("-> 0" + String( 0 + lineSelector)) : Serial.println("-> " + String( 0 + lineSelector));
-        }
-        Serial.println("////////////////////////////");
+        showNumbersMenu(lineSelector, 1, 0);
         value = lineSelector;
       }
 
@@ -860,32 +685,7 @@ void showMenu()
         {
           lineSelector = 0;
         }
-        Serial.println("////////////////////////////");
-        if(lineSelector == 0)
-        {
-          Serial.println("-> 00");
-          Serial.println("   10");
-          Serial.println("   20");
-        }
-        else if(lineSelector == 1)
-        {
-          Serial.println("   00");
-          Serial.println("-> 10");
-          Serial.println("   20");
-        }
-        else if(lineSelector == 2)
-        {
-          Serial.println("   00");
-          Serial.println("   10");
-          Serial.println("-> 20");
-        }
-        else
-        {
-          Serial.println("   " + String(-20 + (lineSelector * 10)));
-          Serial.println("   " + String(-10 + (lineSelector * 10)));
-          Serial.println("-> " + String(  0 + (lineSelector * 10)));
-        }
-        Serial.println("////////////////////////////");
+        showNumbersMenu(lineSelector, 10, 0);
         value = lineSelector * 10;
       }
     }
@@ -900,32 +700,7 @@ void showMenu()
         {
           lineSelector = 0;
         }
-        Serial.println("////////////////////////////");
-        if(lineSelector == 0)
-        {
-          Serial.println("-> 00");
-          Serial.println("   01");
-          Serial.println("   02");
-        }
-        else if(lineSelector == 1)
-        {
-          Serial.println("   00");
-          Serial.println("-> 01");
-          Serial.println("   02");
-        }
-        else if(lineSelector == 2)
-        {
-          Serial.println("   00");
-          Serial.println("   01");
-          Serial.println("-> 02");
-        }
-        else
-        {
-          (lineSelector - 2) < 10 ? Serial.println("   0" + String(-2 + lineSelector)) : Serial.println("   " + String(-2 + lineSelector));
-          (lineSelector - 1) < 10 ? Serial.println("   0" + String(-1 + lineSelector)) : Serial.println("   " + String(-1 + lineSelector));
-          (lineSelector    ) < 10 ? Serial.println("-> 0" + String( 0 + lineSelector)) : Serial.println("-> " + String( 0 + lineSelector));
-        }
-        Serial.println("////////////////////////////");
+        showNumbersMenu(lineSelector, 1, 0);
         value = lineSelector;
       }
 
@@ -936,45 +711,20 @@ void showMenu()
         {
           lineSelector = 0;
         }
-        Serial.println("////////////////////////////");
-        if(lineSelector == 0)
-        {
-          Serial.println("-> 00");
-          Serial.println("   10");
-          Serial.println("   20");
-        }
-        else if(lineSelector == 1)
-        {
-          Serial.println("   00");
-          Serial.println("-> 10");
-          Serial.println("   20");
-        }
-        else if(lineSelector == 2)
-        {
-          Serial.println("   00");
-          Serial.println("   10");
-          Serial.println("-> 20");
-        }
-        else
-        {
-          Serial.println("   " + String(-20 + (lineSelector * 10)));
-          Serial.println("   " + String(-10 + (lineSelector * 10)));
-          Serial.println("-> " + String(  0 + (lineSelector * 10)));
-        }
-        Serial.println("////////////////////////////");
+        showNumbersMenu(lineSelector, 10, 0);
         value = (lineSelector + 1) * 10;
       }
     }
   }
   // Serial.print("temp: ");
   // Serial.println(value);
-  Serial.print("pageNumbers: {");
-  Serial.print(pageNumbers[0]);
-  Serial.print(", ");
-  Serial.print(pageNumbers[1]);
-  Serial.print(", ");
-  Serial.print(pageNumbers[2]);
-  Serial.println("}");
+  // Serial.print("pageNumbers: {");
+  // Serial.print(pageNumbers[0]);
+  // Serial.print(", ");
+  // Serial.print(pageNumbers[1]);
+  // Serial.print(", ");
+  // Serial.print(pageNumbers[2]);
+  // Serial.println("}");
 }
 
 /*********************************************************************** END OF FILE ************************************************************************/
