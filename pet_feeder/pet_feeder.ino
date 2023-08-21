@@ -3,7 +3,9 @@
 #include <Wire.h>
 #include <DS3231.h>
 
-#define DRIVER_PIN    10
+#define DRIVER_PIN    D6
+
+byte tempArray[10] = {99, 99, 99, 99, 99, 99, 99, 99, 99, 99}; //for debugging
 
 DS3231 set;
 RTClib myRTC;
@@ -23,23 +25,30 @@ void setup ()
 {
     Serial.begin(9600);
     Wire.begin();
-    // setTime(2023, 8, 14, 11, 58, 40);
-    // pref.begin("pet_feeder", false);
-    // pinMode(DRIVER_PIN, OUTPUT);
-    // /* check if there is feed times saved */
-    // byte *pDummy;
-    // if(!getFeedTimes(pDummy, pDummy, pDummy, pDummy))
-    // {
-    //   //TODO
-    // }
-    // else
-    // {
-    //   byte temp = checkMisFeeding();
-    //   if(temp != -1)
-    //   {
-    //     misFeedingHandler(temp);
-    //   }
-    // }
+    setTime(2023, 8, 20, 17, 55, 40);
+    pref.begin("pet_feeder", false);
+    pinMode(DRIVER_PIN, OUTPUT);
+    /* check if there is feed times saved */
+    byte d1, d2, d3, d4;
+    byte *pDummy = &d1, *pDummy2 = &d2, *pDummy3 = &d3, *pDummy4 = &d4;
+    if(!getFeedTimes(&pDummy, &pDummy2, &pDummy3, &pDummy4))
+    {
+      //TODO
+    }
+    else
+    {
+      int temp = checkMisFeeding();
+      if(temp != -1)
+      {
+        misFeedingHandler(temp);
+        Serial.println("Misfeeding: " + String(temp));
+      }
+   }
+
+   for(int m = 0; m < 10; m++)
+   {
+     Serial.printf("checks: %d\n", tempArray[m]);
+   }
 
     //pinMode(D6, OUTPUT);
     delay(100);
@@ -93,22 +102,31 @@ void showTemperature()
 
 /************************************************************** FEED TIME FUNCTIONS *************************************************************/
 
-bool getFeedTimes(byte *pCounter, byte *pHours, byte *pMinutes, byte *pChecks)
+bool getFeedTimes(byte **pCounter, byte **pHours, byte **pMinutes, byte **pChecks)
 {
-    *pCounter = pref.getInt("feed_counter", 0);
-    if(feed_counter > 0)
+    **pCounter = pref.getInt("feed_counter", 0);
+    Serial.println("Saved feedings: " + String(**pCounter));
+
+    if(*pCounter > 0)
     {
-      byte feed_hours[*pCounter];
-      byte feed_minutes[*pCounter];
-      byte feed_checks[*pCounter];
+      byte feed_hours[**pCounter];
+      byte feed_minutes[**pCounter];
+      byte feed_checks[**pCounter];
 
-      pref.getBytes("feed_hours", feed_hours, *pCounter);
-      pref.getBytes("feed_minutes", feed_minutes, *pCounter);
-      pref.getBytes("feed_checks", feed_checks, *pCounter);
+      pref.getBytes("feed_hours", feed_hours, **pCounter);
+      pref.getBytes("feed_minutes", feed_minutes, **pCounter);
+      pref.getBytes("feed_checks", feed_checks, **pCounter);
 
-      pHours = &feed_hours[0];
-      pMinutes = &feed_minutes[0];
-      pChecks = &feed_checks[0];
+      *pHours = &feed_hours[0];
+      *pMinutes = &feed_minutes[0];
+      *pChecks = &feed_checks[0];
+
+      // for(int y = 0; y < **pCounter; y++)
+      // {
+      //   Serial.printf("pHours: %d\n", *(*pHours + y));
+      //   Serial.printf("pMinutes: %d\n", *(*pMinutes + y));
+      //   Serial.printf("pChecks: %d\n", *(*pChecks + y));
+      // }
     }
     else
     {
@@ -131,26 +149,37 @@ bool calculateFeedTimes()
     byte feed_minutes2[feed_counter2];
     byte feed_checks2[feed_counter2];
 
-    for(byte i = 0; i < feed_counter2; i++)
+    for(byte i = 0; i <= (feed_counter2 / interval); i++)
     {
       /* save values to arrays */
       feed_hours2[i] = temp_hr;
-      feed_minutes2[i] = temp_min;
+      feed_minutes2[i] = temp_min % 60;
       feed_checks2[i] = 0;
 
       /* calculate next feeding time */
       temp_min += interval;
       /* if temp_min is more than 60 * x, increase hour */
-      if(temp_min > (60 * (temp_hr - morning.hr + 1)))
+      if(temp_min >= (60 * (temp_hr - morning.hr + 1)))
       {
         temp_hr++;
       }
     }
 
+    for(int h = 0; h < (feed_counter2 / interval); h++)
+    {
+      Serial.println("feeding hour saved: " + String(feed_hours2[h]));
+      Serial.println("feeding min saved: " + String(feed_minutes2[h]));
+      Serial.println("feeding check saved: " + String(feed_checks2[h]));
+    }
+
+    /* clear database */
+    pref.clear();
     /* save values to database */
-    pref.putBytes("feed_hours", feed_hours2, feed_counter2);
-    pref.putBytes("feed_minutes", feed_minutes2, feed_counter2);
-    pref.putBytes("feed_checks", feed_checks2, feed_counter2);
+    Serial.println((feed_counter2 / interval));
+    pref.putInt("feed_counter", (feed_counter2 / interval));
+    pref.putBytes("feed_hours", feed_hours2, (feed_counter2 / interval));
+    pref.putBytes("feed_minutes", feed_minutes2, (feed_counter2 / interval));
+    pref.putBytes("feed_checks", feed_checks2, (feed_counter2 / interval));
 
     return true;
   }
@@ -163,26 +192,28 @@ bool calculateFeedTimes()
 void feedTime(byte sec)
 {
   digitalWrite(DRIVER_PIN, HIGH);
-  delay(sec * 10);
+  delay(sec * 1000);
   digitalWrite(DRIVER_PIN, LOW);
 }
 
-byte checkMisFeeding()
+int checkMisFeeding()
 {
-  byte *feed_counter3;
-  byte *pFeed_hours;
-  byte *pFeed_minutes;
-  byte *pFeed_checks;
+  byte d5, d6, d7, d8;
+  byte *feed_counter3 = &d5, *pFeed_hours = &d6, *pFeed_minutes = &d7, *pFeed_checks = &d8;
 
   DateTime now2 = myRTC.now();
   byte temp_hr2 = now2.hour();
   byte temp_min2 = now2.minute();
 
-  getFeedTimes(feed_counter3, pFeed_hours, pFeed_minutes, pFeed_checks);
+  getFeedTimes(&feed_counter3, &pFeed_hours, &pFeed_minutes, &pFeed_checks);
+
+  byte *temp = pFeed_hours;
+  byte *temp2 = pFeed_minutes;
+  byte *temp3 = pFeed_checks;
 
   for(byte j = 0; j < *feed_counter3; j++)
   {
-    if((temp_hr2 >= *(pFeed_hours + j)) && (temp_min2 >= *(pFeed_minutes + j)))
+    if((temp_hr2 >= *(pFeed_hours + j)) && (temp_min2 >= *(pFeed_minutes + j)) && ((j == *feed_counter3) || ((temp_hr2 < *(pFeed_hours + j + 1)) && (temp_min2 < *(pFeed_minutes + j + 1)))))
     {
       if(*(pFeed_checks + j) == 0)
       {
@@ -190,18 +221,22 @@ byte checkMisFeeding()
       }
       return -1;
     }
+
+    //Serial.printf("pFeed_hours: %d\n", *(temp + j));
+    //Serial.printf("pFeed_minutes: %d\n", *(temp2 + j));
+    //Serial.printf("pFeed_checks: %d\n", *(temp3 + j));
+
+    tempArray[j] = *(temp3 + j);
   }
   return -1;
 }
 
 void misFeedingHandler(byte feeding_number)
 {
-  byte *feed_counter4;
-  byte *pFeed_hours2;
-  byte *pFeed_minutes2;
-  byte *pFeed_checks2;
+  byte d9, d10, d11, d12;
+  byte *feed_counter4 = &d9, *pFeed_hours2 = &d10, *pFeed_minutes2 = &d11, *pFeed_checks2 = &d12;
 
-  getFeedTimes(feed_counter4, pFeed_hours2, pFeed_minutes2, pFeed_checks2);
+  getFeedTimes(&feed_counter4, &pFeed_hours2, &pFeed_minutes2, &pFeed_checks2);
 
   /* complete misfeeding */
   //feedTime(10);
@@ -331,6 +366,17 @@ void readChar()
               interval = value;
               value = -1;
               pageNumbers[1] = 0;
+              /* save all feeding settings */
+              if(calculateFeedTimes())
+              {
+                //TODO
+                Serial.println("//SUCCESS//SUCCESS//SUCCESS//SUCCESS//SUCCESS//SUCCESS//SUCCESS//");
+              }
+              else
+              {
+                //TODO
+                Serial.println("//ERROR//ERROR//ERROR//ERROR//ERROR//ERROR//ERROR//ERROR//ERROR//");
+              }
             }
             /* save extra feeding */
             else if(pageNumbers[1] == 4)
